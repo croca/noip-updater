@@ -2,11 +2,11 @@
 # -*- coding: utf-8 -*-
 #=============================  No-ip Updater  ==============================
 #
-# Description: script to update you external IP address in the DDNS
-#              service no-ip.com
+# Description: script to update you external IP address in the DDNS service
+#              no-ip.com
 # Author: Hector Gonzalez
-# Last modified: 09/07/2013
-# Version: 0.5
+# Last modified: 17/07/2013
+# Version: 0.6
 #
 #============================================================================
 
@@ -24,32 +24,29 @@ class NOIP:
     HOSTNAME = '' # insert your noip hostname, e.g. myuser.no-ip.org'
     WHATISMYIP = 'http://icanhazip.com' # look for your external IP address
     IPFILE = 'myIP.txt' # where to store your current IP address
-    USER_AGENT = 'Python Client Updater/0.5  myusername@domain.com'
+    USER_AGENT = 'Python Client Updater/0.6  myusername@domain.com'
     UPDATE_URL = 'https://dynupdate.no-ip.com/nic/update'
 
-    # getIP returns your external IP address
+    #init
+    def __init__(self):
+        try:
+            f = open(self.IPFILE, 'r')
+        # if IPFILE does not exist, create it
+        except IOError:
+            f = open(self.IPFILE, 'w')
+        f.close()
+    
+    #getIP returns your external IP address
     def getIP(self):
         r = requests.get(self.WHATISMYIP)
         return r.text.rsplit()[0]
 
-    # checkIP looks for changes on your current IP address
-    def checkIP(self, IP):
-        try:
-            with open(self.IPFILE) as f:
-                storedIP = f.readline()
-                f.close()
-        # if IPFILE does not exist, create it (first time executed)
-        except IOError:
-            f = open(self.IPFILE, 'w').close()
-            f.close()
-            return False
-        if storedIP != IP:
-            f = open(self.IPFILE, 'w')
-            f.write(IP)
-            f.close()
-            return False
-        else: # IP address has not changed
-            return True
+    # newIP looks for changes on your current IP address
+    def newIP(self, IP):
+        f = open(self.IPFILE, 'r')
+        storedIP = f.readline()
+        f.close()
+        return True if storedIP != IP else False
 
     # refresh your external IP address in your no-ip account
     def updateIP(self, IP):
@@ -72,6 +69,11 @@ class NOIP:
         #print r.headers
         return r.text.encode("ascii")
 
+    def storeIP(self, IP):
+        f = open(self.IPFILE, 'w')
+        f.write(IP)
+        f.close()
+
 # end of class NOIP
 
 # Open/Create the log file with level ERROR and timestamp enabled
@@ -81,11 +83,13 @@ logging.basicConfig(format='%(asctime)s - %(levelname)s - %(message)s',filename=
 c = NOIP()
 # if the IP has changed, call the update IP address method
 IP = c.getIP()
-if (c.checkIP(IP)):
+if c.newIP(IP):
     output = c.updateIP(IP)
     # Write the success message into the log
     if output.rsplit()[0] == 'good':
         logging.info("External IP %s has been updated", IP)
+        #only if the IP is successfully updated we store its value on a local file
+        c.storeIP(IP)
     elif output.rsplit()[0] == 'nochg':
         logging.info("External IP %s has not changed", IP)
     # Write the possible error into the log file 
